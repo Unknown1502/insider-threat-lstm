@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerts Management - Insider Threat Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-shield-alt me-2"></i>Insider Threat Detection
+            </a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="nav-link" href="{{ url_for('model_training') }}">Model Training</a>
+                <a class="nav-link active" href="{{ url_for('alerts') }}">Alerts</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Alert Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center border-danger">
+                    <div class="card-body">
+                        <i class="fas fa-exclamation-circle fa-2x text-danger mb-2"></i>
+                        <h5 class="card-title">Critical Alerts</h5>
+                        <h3 class="text-danger" id="criticalAlerts">
+                            {{ alerts | selectattr('severity', 'equalto', 'critical') | list | length }}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-warning">
+                    <div class="card-body">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                        <h5 class="card-title">High Priority</h5>
+                        <h3 class="text-warning" id="highAlerts">
+                            {{ alerts | selectattr('severity', 'equalto', 'high') | list | length }}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-info">
+                    <div class="card-body">
+                        <i class="fas fa-info-circle fa-2x text-info mb-2"></i>
+                        <h5 class="card-title">Medium Priority</h5>
+                        <h3 class="text-info" id="mediumAlerts">
+                            {{ alerts | selectattr('severity', 'equalto', 'medium') | list | length }}
+                        </h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-secondary">
+                    <div class="card-body">
+                        <i class="fas fa-bell fa-2x text-secondary mb-2"></i>
+                        <h5 class="card-title">Total Alerts</h5>
+                        <h3 class="text-secondary" id="totalAlerts">{{ alerts | length }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert Filters -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-filter me-2"></i>Alert Filters
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="severityFilter" class="form-label">Severity</label>
+                                    <select class="form-select" id="severityFilter" onchange="filterAlerts()">
+                                        <option value="">All Severities</option>
+                                        <option value="critical">Critical</option>
+                                        <option value="high">High</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="statusFilter" class="form-label">Status</label>
+                                    <select class="form-select" id="statusFilter" onchange="filterAlerts()">
+                                        <option value="">All Status</option>
+                                        <option value="active">Active</option>
+                                        <option value="acknowledged">Acknowledged</option>
+                                        <option value="resolved">Resolved</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="userFilter" class="form-label">User</label>
+                                    <input type="text" class="form-control" id="userFilter" placeholder="Filter by user" onkeyup="filterAlerts()">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="dateFilter" class="form-label">Date Range</label>
+                                    <select class="form-select" id="dateFilter" onchange="filterAlerts()">
+                                        <option value="">All Dates</option>
+                                        <option value="today">Today</option>
+                                        <option value="yesterday">Yesterday</option>
+                                        <option value="week">This Week</option>
+                                        <option value="month">This Month</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                                    <i class="fas fa-times me-1"></i>Clear Filters
+                                </button>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <button class="btn btn-outline-primary" onclick="exportAlerts()">
+                                    <i class="fas fa-download me-1"></i>Export Alerts
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Table -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-list me-2"></i>Alert Management
+                        </h5>
+                        <div>
+                            <button class="btn btn-outline-success btn-sm" onclick="acknowledgeSelected()">
+                                <i class="fas fa-check me-1"></i>Acknowledge Selected
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteSelected()">
+                                <i class="fas fa-trash me-1"></i>Delete Selected
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="alertsTable">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                        </th>
+                                        <th>ID</th>
+                                        <th>Timestamp</th>
+                                        <th>User</th>
+                                        <th>Event Type</th>
+                                        <th>Severity</th>
+                                        <th>Threat Score</th>
+                                        <th>Status</th>
+                                        <th>Description</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for alert in alerts %}
+                                    <tr class="alert-row" data-severity="{{ alert.severity }}" data-status="{{ alert.status }}" data-user="{{ alert.user }}" data-timestamp="{{ alert.timestamp }}">
+                                        <td>
+                                            <input type="checkbox" class="alert-checkbox" value="{{ alert.id }}">
+                                        </td>
+                                        <td>
+                                            <strong>#{{ alert.id }}</strong>
+                                        </td>
+                                        <td>
+                                            <small>{{ alert.timestamp[:19] }}</small>
+                                        </td>
+                                        <td>
+                                            <strong>{{ alert.user }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ alert.src_ip }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ alert.event_type }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{% if alert.severity == 'critical' %}danger{% elif alert.severity == 'high' %}warning{% elif alert.severity == 'medium' %}info{% else %}secondary{% endif %}">
+                                                {{ alert.severity }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold {% if alert.threat_score > 0.8 %}text-danger{% elif alert.threat_score > 0.5 %}text-warning{% else %}text-success{% endif %}">
+                                                {{ "%.3f"|format(alert.threat_score) }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{% if alert.status == 'active' %}success{% elif alert.status == 'acknowledged' %}warning{% else %}secondary{% endif %}">
+                                                {{ alert.status }}
+                                            </span>
+                                            {% if alert.acknowledged_at %}
+                                            <br>
+                                            <small class="text-muted">{{ alert.acknowledged_at[:19] }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="description-cell">
+                                                {{ alert.description[:80] }}{% if alert.description|length > 80 %}...{% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-primary" onclick="viewAlertDetails({{ alert.id }})">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                {% if alert.status == 'active' %}
+                                                <button class="btn btn-sm btn-outline-success" onclick="acknowledgeAlert({{ alert.id }})">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                                {% endif %}
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteAlert({{ alert.id }})">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% if not alerts %}
+                                    <tr>
+                                        <td colspan="10" class="text-center text-muted">
+                                            <i class="fas fa-info-circle me-2"></i>No alerts found
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Details Modal -->
+    <div class="modal fade" id="alertDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Alert Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="alertDetailsContent">
+                    <!-- Alert details will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-success" onclick="acknowledgeCurrentAlert()">
+                        <i class="fas fa-check me-1"></i>Acknowledge
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="deleteCurrentAlert()">
+                        <i class="fas fa-trash me-1"></i>Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Global variables
+        let currentAlertId = null;
+        let allAlerts = [];
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAllAlerts();
+        });
+        
+        function loadAllAlerts() {
+            // Store all alerts for filtering
+            const rows = document.querySelectorAll('.alert-row');
+            allAlerts = Array.from(rows).map(row => ({
+                id: row.querySelector('.alert-checkbox').value,
+                severity: row.dataset.severity,
+                status: row.dataset.status,
+                user: row.dataset.user,
+                timestamp: row.dataset.timestamp,
+                element: row
+            }));
+        }
+        
+        function filterAlerts() {
+            const severityFilter = document.getElementById('severityFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const userFilter = document.getElementById('userFilter').value.toLowerCase();
+            const dateFilter = document.getElementById('dateFilter').value;
+            
+            let visibleCount = 0;
+            
+            allAlerts.forEach(alert => {
+                let visible = true;
+                
+                // Severity filter
+                if (severityFilter && alert.severity !== severityFilter) {
+                    visible = false;
+                }
+                
+                // Status filter
+                if (statusFilter && alert.status !== statusFilter) {
+                    visible = false;
+                }
+                
+                // User filter
+                if (userFilter && !alert.user.toLowerCase().includes(userFilter)) {
+                    visible = false;
+                }
+                
+                // Date filter
+                if (dateFilter) {
+                    const alertDate = new Date(alert.timestamp);
+                    const now = new Date();
+                    
+                    switch (dateFilter) {
+                        case 'today':
+                            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            if (alertDate < today) visible = false;
+                            break;
+                        case 'yesterday':
+                            const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                            const dayBefore = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2);
+                            if (alertDate < dayBefore || alertDate >= yesterday) visible = false;
+                            break;
+                        case 'week':
+                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                            if (alertDate < weekAgo) visible = false;
+                            break;
+                        case 'month':
+                            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                            if (alertDate < monthAgo) visible = false;
+                            break;
+                    }
+                }
+                
+                alert.element.style.display = visible ? '' : 'none';
+                if (visible) visibleCount++;
+            });
+            
+            // Update counts
+            updateFilteredCounts();
+        }
+        
+        function updateFilteredCounts() {
+            const visibleRows = document.querySelectorAll('.alert-row:not([style*="display: none"])');
+            
+            let criticalCount = 0;
+            let highCount = 0;
+            let mediumCount = 0;
+            let totalCount = visibleRows.length;
+            
+            visibleRows.forEach(row => {
+                const severity = row.dataset.severity;
+                switch (severity) {
+                    case 'critical':
+                        criticalCount++;
+                        break;
+                    case 'high':
+                        highCount++;
+                        break;
+                    case 'medium':
+                        mediumCount++;
+                        break;
+                }
+            });
+            
+            document.getElementById('criticalAlerts').textContent = criticalCount;
+            document.getElementById('highAlerts').textContent = highCount;
+            document.getElementById('mediumAlerts').textContent = mediumCount;
+            document.getElementById('totalAlerts').textContent = totalCount;
+        }
+        
+        function clearFilters() {
+            document.getElementById('severityFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('userFilter').value = '';
+            document.getElementById('dateFilter').value = '';
+            filterAlerts();
+        }
+        
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.alert-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                const row = checkbox.closest('.alert-row');
+                if (row.style.display !== 'none') {
+                    checkbox.checked = selectAll.checked;
+                }
+            });
+        }
+        
+        function getSelectedAlerts() {
+            const selectedCheckboxes = document.querySelectorAll('.alert-checkbox:checked');
+            return Array.from(selectedCheckboxes).map(cb => cb.value);
+        }
+        
+        function acknowledgeSelected() {
+            const selectedAlerts = getSelectedAlerts();
+            
+            if (selectedAlerts.length === 0) {
+                showAlert('Please select alerts to acknowledge', 'warning');
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to acknowledge ${selectedAlerts.length} alert(s)?`)) {
+                selectedAlerts.forEach(alertId => {
+                    acknowledgeAlert(alertId);
+                });
+            }
+        }
+        
+        function deleteSelected() {
+            const selectedAlerts = getSelectedAlerts();
+            
+            if (selectedAlerts.length === 0) {
+                showAlert('Please select alerts to delete', 'warning');
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to delete ${selectedAlerts.length} alert(s)? This action cannot be undone.`)) {
+                selectedAlerts.forEach(alertId => {
+                    deleteAlert(alertId);
+                });
+            }
+        }
+        
+        function viewAlertDetails(alertId) {
+            currentAlertId = alertId;
+            
+            // Load alert details
+            document.getElementById('alertDetailsContent').innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin me-2"></i>Loading alert details...
+                </div>
+            `;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('alertDetailsModal'));
+            modal.show();
+            
+            // Simulate loading alert details
+            setTimeout(() => {
+                document.getElementById('alertDetailsContent').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Alert Information</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Alert ID:</strong></td><td>${alertId}</td></tr>
+                                <tr><td><strong>Timestamp:</strong></td><td>${new Date().toISOString()}</td></tr>
+                                <tr><td><strong>User:</strong></td><td>user.example@dtaa.com</td></tr>
+                                <tr><td><strong>Event Type:</strong></td><td>Email</td></tr>
+                                <tr><td><strong>Threat Score:</strong></td><td>0.85</td></tr>
+                                <tr><td><strong>Severity:</strong></td><td>High</td></tr>
+                                <tr><td><strong>Status:</strong></td><td>Active</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Event Details</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Source IP:</strong></td><td>192.168.1.100</td></tr>
+                                <tr><td><strong>Destination:</strong></td><td>external@example.com</td></tr>
+                                <tr><td><strong>Email Size:</strong></td><td>25 MB</td></tr>
+                                <tr><td><strong>Attachments:</strong></td><td>8</td></tr>
+                                <tr><td><strong>External:</strong></td><td>Yes</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <h6>Description</h6>
+                            <p class="bg-light p-2 rounded">
+                                Insider threat detected for user with high threat score. 
+                                Large email size (25 MB) with multiple attachments (8) sent to external recipient during off-hours.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <h6>Risk Factors</h6>
+                            <ul>
+                                <li>Large email size (25 MB)</li>
+                                <li>High number of attachments (8)</li>
+                                <li>External communication</li>
+                                <li>After-hours activity</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }, 1000);
+        }
+        
+        function acknowledgeAlert(alertId) {
+            fetch(`/api/alerts/${alertId}/acknowledge`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('Alert acknowledged successfully', 'success');
+                    
+                    // Update the row
+                    const row = document.querySelector(`input[value="${alertId}"]`).closest('tr');
+                    const statusCell = row.querySelector('.badge');
+                    statusCell.textContent = 'acknowledged';
+                    statusCell.className = 'badge bg-warning';
+                    
+                    // Update dataset
+                    const alert = allAlerts.find(a => a.id === alertId);
+                    if (alert) {
+                        alert.status = 'acknowledged';
+                        alert.element.dataset.status = 'acknowledged';
+                    }
+                    
+                    updateFilteredCounts();
+                    
+                } else {
+                    showAlert('Failed to acknowledge alert: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                showAlert('Error acknowledging alert: ' + error.message, 'danger');
+            });
+        }
+        
+        function deleteAlert(alertId) {
+            if (confirm('Are you sure you want to delete this alert? This action cannot be undone.')) {
+                // Simulate delete operation
+                showAlert('Alert deleted successfully', 'success');
+                
+                // Remove the row
+                const row = document.querySelector(`input[value="${alertId}"]`).closest('tr');
+                row.remove();
+                
+                // Update allAlerts array
+                const index = allAlerts.findIndex(a => a.id === alertId);
+                if (index > -1) {
+                    allAlerts.splice(index, 1);
+                }
+                
+                updateFilteredCounts();
+            }
+        }
+        
+        function acknowledgeCurrentAlert() {
+            if (currentAlertId) {
+                acknowledgeAlert(currentAlertId);
+                bootstrap.Modal.getInstance(document.getElementById('alertDetailsModal')).hide();
+            }
+        }
+        
+        function deleteCurrentAlert() {
+            if (currentAlertId) {
+                deleteAlert(currentAlertId);
+                bootstrap.Modal.getInstance(document.getElementById('alertDetailsModal')).hide();
+            }
+        }
+        
+        function exportAlerts() {
+            // Simulate export functionality
+            const visibleRows = document.querySelectorAll('.alert-row:not([style*="display: none"])');
+            showAlert(`Exporting ${visibleRows.length} alerts...`, 'info');
+            
+            setTimeout(() => {
+                showAlert('Alerts exported successfully!', 'success');
+            }, 2000);
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            // Auto dismiss after 5 seconds
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

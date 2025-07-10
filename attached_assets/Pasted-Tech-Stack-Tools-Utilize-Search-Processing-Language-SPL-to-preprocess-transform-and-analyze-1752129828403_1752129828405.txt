@@ -1,0 +1,48 @@
+Tech Stack / Tools
+
+Utilize Search Processing Language (SPL) to preprocess, transform, and analyze data for ML model training and detection logic.
+
+Implement machine learning models using Splunk Machine Learning Toolkit (MLTK) for anomaly detection, predictive analytics, and pattern recognition.
+
+Participants are encouraged to bring their own data into Splunk instances and build ML models on top of the indexes with data.
+
+Work within either: A Splunk instance with a developer license OR Splunk Cloud Developer Edition (SCDE) (Limited Availability).
+
+Participants are encouraged (but not required) to leverage Splunk’s app development frameworks to enhance modularity and scalability.
+
+Use Splunk’s built-in visualization tools, such as dashboards, graphs, and reports, to present findings and model outputs effectively.
+
+Requirements
+
+Participants must choose a Common Information Model (CIM) data model, such as Authentication, Firewall, Web Logs, or other relevant categories.
+
+If participants do not have raw logs that can be converted into CIM data models, they can generate their own data using CIM data fields or bring any data that complies with CIM data fields.
+
+Data can be generated synthetically or obtained from external sources (e.g., open datasets, logs, or sample CSV files).
+
+Must use the Splunk Machine Learning Toolkit (MLTK) to develop an ML-based threat detection model within Splunk.
+
+The solution should align with one of the provided problem statements or propose a new anomaly detection use case relevant to security.
+
+Functionality
+
+The app should be built on top of Common Information Model (CIM) data models, ensuring compatibility with standardized security/log data.
+
+The app must be capable of ingesting and processing relevant security/log data within Splunk for analysis.
+
+Implement ML models to detect anomalies, unusual behaviors, or security threats within the ingested data.
+
+Generate alerts, dashboards, and/or reports to effectively display detected anomalies and provide actionable insights.
+
+Include a mechanism for refining and tuning ML models based on new data to enhance detection accuracy over time (Optional).
+
+Deliverables
+
+The solution must be compatible with the latest version of Splunk Enterprise or Splunk Cloud.
+
+The solution must be packaged as a Splunk app and submitted via a Git repository link (public or private). If private, judges must be granted access.
+
+The app should work on CIM-compliant fields, such as firewalls, VPNs, USB storage, printing devices, and other security-related data streams.
+
+The code must follow Splunk’s best practices for performance, scalability, and security to ensure efficient processing and deployment (Optional).
+

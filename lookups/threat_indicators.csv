@@ -1,0 +1,24 @@
+user,risk_level,threat_category,description,last_updated
+admin,high,privileged_access,Administrative account with elevated privileges,2024-01-15
+root,critical,privileged_access,Root system account,2024-01-15
+system,medium,system_account,System service account,2024-01-15
+service,medium,system_account,Service account,2024-01-15
+guest,low,guest_account,Guest user account,2024-01-15
+test,low,test_account,Test user account,2024-01-15
+demo,low,demo_account,Demo user account,2024-01-15
+alice.smith,medium,regular_user,Regular employee,2024-01-15
+bob.johnson,medium,regular_user,Regular employee,2024-01-15
+charlie.brown,high,high_risk_user,User with elevated risk profile,2024-01-15
+diana.wilson,medium,regular_user,Regular employee,2024-01-15
+eve.davis,high,terminated_user,Recently terminated employee,2024-01-15
+frank.miller,medium,contractor,External contractor,2024-01-15
+grace.taylor,low,intern,Intern account,2024-01-15
+henry.clark,medium,regular_user,Regular employee,2024-01-15
+iris.lee,high,insider_threat,Previously flagged for suspicious activity,2024-01-15
+jack.white,medium,regular_user,Regular employee,2024-01-15
+karen.green,low,part_time,Part-time employee,2024-01-15
+leo.harris,medium,regular_user,Regular employee,2024-01-15
+mia.thompson,high,privileged_user,User with sensitive data access,2024-01-15
+noah.martin,medium,regular_user,Regular employee,2024-01-15
+olivia.garcia,low,new_hire,Recently hired employee,2024-01-15
+peter.robinson,medium,regular_user,Regular employee,2024-01-15

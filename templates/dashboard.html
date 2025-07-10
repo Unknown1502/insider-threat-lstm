@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Monitoring Dashboard - Insider Threat Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-shield-alt me-2"></i>Insider Threat Detection
+            </a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                <a class="nav-link active" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="nav-link" href="{{ url_for('model_training') }}">Model Training</a>
+                <a class="nav-link" href="{{ url_for('alerts') }}">Alerts</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Real-time Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Events</h5>
+                        <h2 class="text-primary" id="totalEvents">{{ real_time_stats.total_events }}</h2>
+                        <small class="text-muted">Last 24 hours</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Threats Detected</h5>
+                        <h2 class="text-warning" id="threatsDetected">{{ real_time_stats.threats_detected }}</h2>
+                        <small class="text-muted">Active threats</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Alerts Generated</h5>
+                        <h2 class="text-danger" id="alertsGenerated">{{ real_time_stats.alerts_generated }}</h2>
+                        <small class="text-muted">Requires attention</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Detection Rate</h5>
+                        <h2 class="text-success" id="detectionRate">{{ "%.1f"|format(real_time_stats.detection_rate) }}%</h2>
+                        <small class="text-muted">Accuracy</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line me-2"></i>Threat Trend (Last 7 Days)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="threatTrendChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>Alert Severity Distribution
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="severityChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Threats and Top Users -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Recent Threats
+                            <span class="badge bg-danger ms-2" id="recentThreatsCount">{{ recent_threats|length }}</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>User</th>
+                                        <th>Type</th>
+                                        <th>Severity</th>
+                                        <th>Threat Score</th>
+                                        <th>Description</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentThreatsTable">
+                                    {% for threat in recent_threats %}
+                                    <tr>
+                                        <td>
+                                            <small>{{ threat.timestamp[:19] }}</small>
+                                        </td>
+                                        <td>
+                                            <strong>{{ threat.user }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ threat.event_type }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{% if threat.severity == 'critical' %}danger{% elif threat.severity == 'high' %}warning{% elif threat.severity == 'medium' %}info{% else %}secondary{% endif %}">
+                                                {{ threat.severity }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold {% if threat.threat_score > 0.8 %}text-danger{% elif threat.threat_score > 0.5 %}text-warning{% else %}text-success{% endif %}">
+                                                {{ "%.3f"|format(threat.threat_score) }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small>{{ threat.description[:50] }}{% if threat.description|length > 50 %}...{% endif %}</small>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="viewThreatDetails({{ threat.id }})">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% if not recent_threats %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted">
+                                            <i class="fas fa-info-circle me-2"></i>No recent threats detected
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-users me-2"></i>Top Risk Users
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="topRiskUsers">
+                            {% for user in threat_summary.top_users %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong>{{ user.user }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ user.alert_count }} alerts</small>
+                                </div>
+                                <div>
+                                    <span class="badge bg-{% if user.max_threat_score > 0.8 %}danger{% elif user.max_threat_score > 0.5 %}warning{% else %}success{% endif %}">
+                                        {{ "%.3f"|format(user.max_threat_score) }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% if not threat_summary.top_users %}
+                            <div class="text-center text-muted">
+                                <i class="fas fa-info-circle me-2"></i>No risk users identified
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-time Event Feed -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-stream me-2"></i>Real-time Event Feed
+                        </h5>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="toggleAutoRefresh()">
+                                <i class="fas fa-play" id="autoRefreshIcon"></i>
+                                <span id="autoRefreshText">Start Auto-refresh</span>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="clearEventFeed()">
+                                <i class="fas fa-trash"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="eventFeed" style="height: 400px; overflow-y: auto; border: 1px solid #dee2e6; padding: 10px; background-color: #f8f9fa;">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-info-circle me-2"></i>Real-time events will appear here
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Threat Details Modal -->
+    <div class="modal fade" id="threatDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Threat Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="threatDetailsContent">
+                    <!-- Threat details will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="acknowledgeThreat()">Acknowledge</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    
+    <script>
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+        });
+        
+        // Global variables
+        let autoRefreshInterval = null;
+        let isAutoRefresh = false;
+        let currentThreatId = null;
+        let threatTrendChart = null;
+        let severityChart = null;
+        
+        function initializeDashboard() {
+            // Initialize charts
+            initializeThreatTrendChart();
+            initializeSeverityChart();
+            
+            // Load initial data
+            loadThreatSummary();
+            
+            // Set up periodic updates
+            setInterval(updateStats, 30000); // Update every 30 seconds
+        }
+        
+        function initializeThreatTrendChart() {
+            const ctx = document.getElementById('threatTrendChart').getContext('2d');
+            
+            // Sample data - replace with real data from threat_summary
+            const trendData = {{ threat_summary.trend_data|tojson if threat_summary.trend_data else []|tojson }};
+            
+            threatTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trendData.map(d => d.date),
+                    datasets: [{
+                        label: 'Threats Detected',
+                        data: trendData.map(d => d.count),
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        function initializeSeverityChart() {
+            const ctx = document.getElementById('severityChart').getContext('2d');
+            
+            // Sample data - replace with real data from threat_summary
+            const severityCounts = {{ threat_summary.severity_counts|tojson if threat_summary.severity_counts else {}|tojson }};
+            
+            severityChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(severityCounts),
+                    datasets: [{
+                        data: Object.values(severityCounts),
+                        backgroundColor: [
+                            '#dc3545', // critical - red
+                            '#fd7e14', // high - orange
+                            '#ffc107', // medium - yellow
+                            '#6c757d'  // low - gray
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function loadThreatSummary() {
+            // This would typically fetch from an API endpoint
+            // For now, we'll use the data passed from the backend
+            console.log('Threat summary loaded');
+        }
+        
+        function updateStats() {
+            // Update real-time statistics
+            fetch('/api/model_metrics')
+            .then(response => response.json())
+            .then(data => {
+                // Update UI with latest stats
+                console.log('Stats updated:', data);
+            })
+            .catch(error => {
+                console.error('Error updating stats:', error);
+            });
+        }
+        
+        function toggleAutoRefresh() {
+            const icon = document.getElementById('autoRefreshIcon');
+            const text = document.getElementById('autoRefreshText');
+            
+            if (isAutoRefresh) {
+                // Stop auto-refresh
+                clearInterval(autoRefreshInterval);
+                isAutoRefresh = false;
+                icon.className = 'fas fa-play';
+                text.textContent = 'Start Auto-refresh';
+            } else {
+                // Start auto-refresh
+                autoRefreshInterval = setInterval(simulateRealTimeEvent, 5000);
+                isAutoRefresh = true;
+                icon.className = 'fas fa-pause';
+                text.textContent = 'Stop Auto-refresh';
+            }
+        }
+        
+        function simulateRealTimeEvent() {
+            const eventFeed = document.getElementById('eventFeed');
+            
+            // Simulate a real-time event
+            const eventTypes = ['email', 'authentication', 'web'];
+            const users = ['alice.smith', 'bob.johnson', 'charlie.brown'];
+            const threatScores = [0.1, 0.3, 0.5, 0.7, 0.9];
+            
+            const randomEvent = {
+                timestamp: new Date().toISOString(),
+                user: users[Math.floor(Math.random() * users.length)],
+                event_type: eventTypes[Math.floor(Math.random() * eventTypes.length)],
+                threat_score: threatScores[Math.floor(Math.random() * threatScores.length)]
+            };
+            
+            const eventElement = document.createElement('div');
+            eventElement.className = 'alert alert-light border-start border-3 border-primary mb-2';
+            eventElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${randomEvent.user}</strong> - ${randomEvent.event_type}
+                        <br>
+                        <small class="text-muted">${randomEvent.timestamp.substring(0, 19)}</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-${randomEvent.threat_score > 0.7 ? 'danger' : randomEvent.threat_score > 0.5 ? 'warning' : 'success'}">
+                            ${randomEvent.threat_score.toFixed(3)}
+                        </span>
+                    </div>
+                </div>
+            `;
+            
+            eventFeed.insertBefore(eventElement, eventFeed.firstChild);
+            
+            // Remove old events (keep only last 20)
+            while (eventFeed.children.length > 20) {
+                eventFeed.removeChild(eventFeed.lastChild);
+            }
+            
+            // Auto-scroll to top
+            eventFeed.scrollTop = 0;
+        }
+        
+        function clearEventFeed() {
+            document.getElementById('eventFeed').innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="fas fa-info-circle me-2"></i>Real-time events will appear here
+                </div>
+            `;
+        }
+        
+        function viewThreatDetails(threatId) {
+            currentThreatId = threatId;
+            
+            // Load threat details
+            document.getElementById('threatDetailsContent').innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin me-2"></i>Loading threat details...
+                </div>
+            `;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('threatDetailsModal'));
+            modal.show();
+            
+            // Simulate loading threat details
+            setTimeout(() => {
+                document.getElementById('threatDetailsContent').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Threat Information</h6>
+                            <p><strong>ID:</strong> ${threatId}</p>
+                            <p><strong>User:</strong> user.example@dtaa.com</p>
+                            <p><strong>Event Type:</strong> Email</p>
+                            <p><strong>Threat Score:</strong> 0.85</p>
+                            <p><strong>Severity:</strong> High</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Event Details</h6>
+                            <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+                            <p><strong>Source IP:</strong> 192.168.1.100</p>
+                            <p><strong>Destination:</strong> external@example.com</p>
+                            <p><strong>Size:</strong> 25 MB</p>
+                            <p><strong>Attachments:</strong> 8</p>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <h6>Risk Factors</h6>
+                            <ul>
+                                <li>Large email size (25 MB)</li>
+                                <li>High number of attachments (8)</li>
+                                <li>External communication</li>
+                                <li>After-hours activity</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }, 1000);
+        }
+        
+        function acknowledgeThreat() {
+            if (currentThreatId) {
+                fetch(`/api/alerts/${currentThreatId}/acknowledge`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showAlert('Threat acknowledged successfully', 'success');
+                        bootstrap.Modal.getInstance(document.getElementById('threatDetailsModal')).hide();
+                        // Refresh the threats table
+                        location.reload();
+                    } else {
+                        showAlert('Failed to acknowledge threat: ' + data.message, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Error acknowledging threat: ' + error.message, 'danger');
+                });
+            }
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            // Auto dismiss after 5 seconds
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

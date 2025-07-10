@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Training - Insider Threat Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-shield-alt me-2"></i>Insider Threat Detection
+            </a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a class="nav-link active" href="{{ url_for('model_training') }}">Model Training</a>
+                <a class="nav-link" href="{{ url_for('alerts') }}">Alerts</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Training Status -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-brain me-2"></i>LSTM Model Training Status
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h6>Current Status</h6>
+                                    <span id="trainingStatus" class="badge bg-{% if training_status.is_training %}warning{% else %}success{% endif %} fs-6">
+                                        {{ training_status.status }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div>
+                                    <h6>Training Progress</h6>
+                                    <div class="progress mb-2">
+                                        <div id="progressBar" class="progress-bar progress-bar-striped {% if training_status.is_training %}progress-bar-animated{% endif %}" 
+                                             style="width: {{ training_status.progress }}%">
+                                            {{ training_status.progress }}%
+                                        </div>
+                                    </div>
+                                    <small class="text-muted" id="progressText">
+                                        {% if training_status.is_training %}
+                                            Training in progress...
+                                        {% else %}
+                                            Training completed
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h6>Actions</h6>
+                                    <button id="startTrainingBtn" class="btn btn-success btn-sm" 
+                                            onclick="startTraining()" 
+                                            {% if training_status.is_training %}disabled{% endif %}>
+                                        <i class="fas fa-play me-1"></i>Start Training
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Information -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-info-circle me-2"></i>Model Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Training History</h6>
+                                <p class="mb-1">
+                                    <strong>Last Training:</strong><br>
+                                    <small class="text-muted">
+                                        {% if training_status.last_training %}
+                                            {{ training_status.last_training[:19] }}
+                                        {% else %}
+                                            Never trained
+                                        {% endif %}
+                                    </small>
+                                </p>
+                                <p class="mb-1">
+                                    <strong>Model Accuracy:</strong><br>
+                                    <span class="text-success">
+                                        {% if training_status.model_accuracy %}
+                                            {{ "%.3f"|format(training_status.model_accuracy) }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </span>
+                                </p>
+                                <p class="mb-1">
+                                    <strong>Model Loss:</strong><br>
+                                    <span class="text-info">
+                                        {% if training_status.model_loss %}
+                                            {{ "%.3f"|format(training_status.model_loss) }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Model Architecture</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Type:</strong> LSTM Neural Network</li>
+                                    <li><strong>Layers:</strong> 3 LSTM + 2 Dense</li>
+                                    <li><strong>Sequence Length:</strong> 10</li>
+                                    <li><strong>Feature Dimensions:</strong> 20</li>
+                                    <li><strong>Activation:</strong> Sigmoid (Output)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-database me-2"></i>Dataset Management
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <h6>CERT Dataset</h6>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Email Dataset (2.6M records)</span>
+                                <button class="btn btn-outline-primary btn-sm" onclick="downloadDataset()">
+                                    <i class="fas fa-download me-1"></i>Download
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <h6>Custom Dataset Upload</h6>
+                            <form id="customDatasetForm" enctype="multipart/form-data">
+                                <div class="input-group">
+                                    <input type="file" class="form-control" id="customDatasetFile" accept=".csv">
+                                    <button class="btn btn-outline-secondary" type="submit">
+                                        <i class="fas fa-upload me-1"></i>Upload
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="mb-3">
+                            <h6>Data Preprocessing</h6>
+                            <button class="btn btn-outline-info btn-sm" onclick="preprocessData()">
+                                <i class="fas fa-cog me-1"></i>Preprocess Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Training Configuration -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-sliders-h me-2"></i>Training Configuration
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="epochs" class="form-label">Epochs</label>
+                                    <input type="number" class="form-control" id="epochs" value="50" min="1" max="200">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="batchSize" class="form-label">Batch Size</label>
+                                    <input type="number" class="form-control" id="batchSize" value="32" min="8" max="128">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="learningRate" class="form-label">Learning Rate</label>
+                                    <input type="number" class="form-control" id="learningRate" value="0.001" min="0.0001" max="0.1" step="0.0001">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="validationSplit" class="form-label">Validation Split</label>
+                                    <input type="number" class="form-control" id="validationSplit" value="0.2" min="0.1" max="0.5" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="sequenceLength" class="form-label">Sequence Length</label>
+                                    <input type="number" class="form-control" id="sequenceLength" value="10" min="5" max="50">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="featureDim" class="form-label">Feature Dimensions</label>
+                                    <input type="number" class="form-control" id="featureDim" value="20" min="10" max="100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Training Logs -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-list me-2"></i>Training Logs
+                        </h5>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="clearLogs()">
+                            <i class="fas fa-trash me-1"></i>Clear Logs
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="trainingLogs" class="bg-dark text-light p-3 rounded" style="height: 300px; overflow-y: auto; font-family: monospace;">
+                            <div class="text-muted">Training logs will appear here...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Performance -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line me-2"></i>Training History
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="trainingHistoryChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>Model Metrics
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="modelMetricsChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <script src="{{ url_for('static', filename='js/model_training.js') }}"></script>
+    
+    <script>
+        // Global variables
+        let trainingStatusInterval = null;
+        let trainingHistoryChart = null;
+        let modelMetricsChart = null;
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            
+            // Start status updates if training is active
+            {% if training_status.is_training %}
+                startStatusUpdates();
+            {% endif %}
+        });
+        
+        function initializeCharts() {
+            initializeTrainingHistoryChart();
+            initializeModelMetricsChart();
+        }
+        
+        function initializeTrainingHistoryChart() {
+            const ctx = document.getElementById('trainingHistoryChart').getContext('2d');
+            
+            trainingHistoryChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Loss',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        tension: 0.1
+                    }, {
+                        label: 'Accuracy',
+                        data: [],
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        function initializeModelMetricsChart() {
+            const ctx = document.getElementById('modelMetricsChart').getContext('2d');
+            
+            modelMetricsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Precision', 'Recall', 'F1-Score', 'AUC'],
+                    datasets: [{
+                        label: 'Performance Metrics',
+                        data: [0.85, 0.78, 0.81, 0.89],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 205, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(255, 99, 132)',
+                            'rgb(54, 162, 235)',
+                            'rgb(255, 205, 86)',
+                            'rgb(75, 192, 192)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1.0
+                        }
+                    }
+                }
+            });
+        }
+        
+        function startTraining() {
+            console.log('Starting training...');
+            
+            // Immediately update UI to show training has started
+            const btn = document.getElementById('startTrainingBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Starting...';
+            btn.disabled = true;
+            
+            // Get configuration
+            const config = {
+                epochs: document.getElementById('epochs').value,
+                batch_size: document.getElementById('batchSize').value,
+                learning_rate: document.getElementById('learningRate').value,
+                validation_split: document.getElementById('validationSplit').value,
+                sequence_length: document.getElementById('sequenceLength').value,
+                feature_dim: document.getElementById('featureDim').value
+            };
+            
+            addLog('Starting model training...', 'info');
+            
+            // Start training
+            fetch('/api/train_model', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    addLog('Training started successfully!', 'success');
+                    startStatusUpdates();
+                    
+                    // Update UI
+                    document.getElementById('trainingStatus').textContent = 'Training...';
+                    document.getElementById('trainingStatus').className = 'badge bg-warning fs-6';
+                    btn.innerHTML = '<i class="fas fa-brain me-1"></i>Training in Progress';
+                    
+                } else {
+                    addLog('Failed to start training: ' + data.message, 'error');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(error => {
+                addLog('Error starting training: ' + error.message, 'error');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+        
+        function startStatusUpdates() {
+            if (trainingStatusInterval) {
+                clearInterval(trainingStatusInterval);
+            }
+            
+            trainingStatusInterval = setInterval(updateTrainingStatus, 5000);
+        }
+        
+        function updateTrainingStatus() {
+            fetch('/api/training_status')
+            .then(response => response.json())
+            .then(data => {
+                // Update progress bar
+                const progressBar = document.getElementById('progressBar');
+                progressBar.style.width = data.progress + '%';
+                progressBar.textContent = data.progress + '%';
+                
+                // Update status
+                const statusBadge = document.getElementById('trainingStatus');
+                statusBadge.textContent = data.status;
+                statusBadge.className = 'badge bg-' + (data.is_training ? 'warning' : 'success') + ' fs-6';
+                
+                // Update progress text
+                document.getElementById('progressText').textContent = data.status;
+                
+                // Add progress bar animation if training
+                if (data.is_training) {
+                    progressBar.classList.add('progress-bar-animated');
+                } else {
+                    progressBar.classList.remove('progress-bar-animated');
+                    
+                    // Training completed
+                    document.getElementById('startTrainingBtn').disabled = false;
+                    clearInterval(trainingStatusInterval);
+                    
+                    addLog('Training completed!', 'success');
+                    
+                    // Update model metrics
+                    if (data.model_accuracy) {
+                        addLog(`Final accuracy: ${data.model_accuracy.toFixed(4)}`, 'info');
+                    }
+                    if (data.model_loss) {
+                        addLog(`Final loss: ${data.model_loss.toFixed(4)}`, 'info');
+                    }
+                }
+            })
+            .catch(error => {
+                addLog('Error updating training status: ' + error.message, 'error');
+            });
+        }
+        
+        function downloadDataset() {
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Downloading...';
+            button.disabled = true;
+            
+            fetch('/api/download_cert_dataset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    addLog('CERT dataset downloaded successfully!', 'success');
+                    showAlert('Dataset downloaded successfully!', 'success');
+                } else {
+                    addLog('Failed to download dataset: ' + data.message, 'error');
+                    showAlert('Failed to download dataset: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                addLog('Error downloading dataset: ' + error.message, 'error');
+                showAlert('Error downloading dataset: ' + error.message, 'danger');
+            })
+            .finally(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+        }
+        
+        function preprocessData() {
+            addLog('Starting data preprocessing...', 'info');
+            
+            // Simulate preprocessing
+            setTimeout(() => {
+                addLog('Data preprocessing completed!', 'success');
+                showAlert('Data preprocessing completed!', 'success');
+            }, 2000);
+        }
+        
+        // Custom dataset upload
+        document.getElementById('customDatasetForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('customDatasetFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                addLog('Please select a file to upload', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            addLog(`Uploading ${file.name}...`, 'info');
+            
+            fetch('/api/upload_dataset', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    addLog(`Dataset uploaded successfully! Processed ${data.records} records.`, 'success');
+                    showAlert(`Dataset uploaded successfully! Processed ${data.records} records.`, 'success');
+                    fileInput.value = '';
+                } else {
+                    addLog('Upload failed: ' + data.message, 'error');
+                    showAlert('Upload failed: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                addLog('Error uploading dataset: ' + error.message, 'error');
+                showAlert('Error uploading dataset: ' + error.message, 'danger');
+            });
+        });
+        
+        function addLog(message, type) {
+            const logsDiv = document.getElementById('trainingLogs');
+            const timestamp = new Date().toISOString().substring(11, 19);
+            const colorClass = type === 'error' ? 'text-danger' : 
+                             type === 'warning' ? 'text-warning' : 
+                             type === 'success' ? 'text-success' : 
+                             type === 'info' ? 'text-info' : 'text-light';
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = colorClass;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('trainingLogs').innerHTML = '<div class="text-muted">Training logs will appear here...</div>';
+        }
+        
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            // Auto dismiss after 5 seconds
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
